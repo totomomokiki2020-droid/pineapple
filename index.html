@@ -218,7 +218,7 @@
       <div><label>購入日（支出日）</label><input type="date" id="eDate"></div>
       <div><label>金額（円・税込）</label><input type="number" id="amount" min="1"></div>
       <div><label>PJ・企画（予算元PJ）</label><select id="pj" onchange="setBudgetOpts()"></select></div>
-      <div><label>予算元（予算の大項目）</label><select id="budget"></select><span class="hint" id="budgetNote" style="color:var(--ng)"></span></div>
+      <div><label>予算元（予算の大項目）</label><select id="budget"></select><span class="hint" id="budgetNote"></span></div>
     </div>
     <div style="margin-top:10px"><label>内容（何のために何を買ったか）</label><textarea id="content" placeholder="例：いすみ模型用の竹加工材料"></textarea></div>
     <div class="grid2" style="margin-top:10px">
@@ -336,10 +336,15 @@ google.script.run.withSuccessHandler(init => {
   $('bPj').innerHTML = opts(init.pjs, '選択');
   $('bMonth').innerHTML = opts([4,5,6,7,8,9,10,11,12,1,2,3].map(m => `${m < 4 ? init.fy + 1 : init.fy}年${m}月`), '選択');
   const myMeetings = (init.meetings || []).filter(x => x.leader === (B.member || ''));
-  $('grpCat').innerHTML = opts(myMeetings.map(x => x.name), myMeetings.length > 1 ? '選択' : '');
+  // 8つの定例はだれにでも見えるが、選べるのは自分がリーダーの定例だけ
+  $('grpCat').innerHTML = '<option value="">' + (myMeetings.length ? '選択' : '（リーダーの定例がありません）') + '</option>' + (init.meetings || []).map(x =>
+    `<option value="${esc(x.name)}"${x.leader === (B.member || '') ? '' : ' disabled'}>${esc(x.name)}（リーダー：${esc(String(x.leader).replace(/^[^\p{L}\p{N}]+/u, ''))}）</option>`).join('');
+  if (myMeetings.length === 1) $('grpCat').value = myMeetings[0].name;
+  if (!myMeetings.length) { $('grpSubmit').disabled = true; msg('grpMsg', 'warn', '定例のまとめ申請は、各定例のリーダーだけができます。あなたの定例の時間は、リーダーが申請すると自分の給与タブに入ります。'); }
   const me = init.members.find(m => m.name === (B.member || ''));
   if (me && me.pj) { $('tPj').value = me.pj; $('bPj').value = me.pj; }
-  if (myMeetings.length) $('groupTab').style.display = '';
+  $('groupTab').style.display = '';
+  renderGroupMembers();
   resetTransport(); renderGroupMembers();
   $('pj').innerHTML = opts(init.pjs, '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('store').innerHTML = opts(init.stores, '選択');
   $('hMonth').innerHTML = '<option value="">すべて</option>' + [4,5,6,7,8,9,10,11,12,1,2,3].map(m => `<option value="${m}">${m}月</option>`).join('');
@@ -507,10 +512,12 @@ function readFileInput(id) {
 function setBudgetOpts(keep) {
   if (!INIT) return;
   const cur = keep || $('budget').value;
-  const list = (INIT.budgetsByPj || {})[$('pj').value] || [];
-  $('budget').innerHTML = list.length ? opts(list, '選択') : '<option value="">（このPJには予算がありません）</option>';
-  if (list.includes(cur)) $('budget').value = cur;
-  $('budgetNote').textContent = $('pj').value && !list.length ? 'このPJ・企画には予算がないため経費を申請できません。先に「追加予算」を申請してください。' : '';
+  const OUT = '予算外（予算にない支出）';
+  const own = (INIT.budgetsByPj || {})[$('pj').value] || [];
+  const list = own.concat([OUT]);
+  $('budget').innerHTML = opts(list, '選択');
+  if (list.includes(cur)) $('budget').value = cur; else if (!own.length && $('pj').value) $('budget').value = OUT;
+  $('budgetNote').textContent = $('pj').value && !own.length ? 'このPJ・企画には予算がないので「予算外」で申請します。' : '予算の大項目から選んでください（予算にない支出は「予算外」）。';
 }
 function resetExpense() {
   ['content','amount','store','storeOther','note','file','rcpt'].forEach(k => $(k).value = ''); onStore();
