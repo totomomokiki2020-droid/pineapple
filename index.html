@@ -70,7 +70,7 @@
   table.list th { background:#f1f5f9; position:sticky; top:0; }
   table.list td.num { text-align:right; white-space:nowrap; }
   .mini { padding:3px 8px; font-size:12px; border-radius:4px; border:1px solid var(--line); background:#fff; cursor:pointer; margin:1px; }
-  .mini.del { color:var(--ng); border-color:#fca5a5; }
+  .mini.del { color:var(--ng); border-color:#fca5a5; position:static; }
   .mini.del.sure { background:var(--ng); color:#fff; }
   .badge { font-size:11px; padding:1px 6px; border-radius:8px; background:#e5e7eb; white-space:nowrap; }
   .badge.要確認 { background:#fee2e2; } .badge.未確認 { background:#fef3c7; } .badge.領収書確認済, .badge.精算済 { background:#dcfce7; }
@@ -103,7 +103,7 @@
     <button data-p="work" onclick="go('work')">🕒 稼働時間</button>
     <button data-p="genba" onclick="go('genba')">🚩 現地活動費</button>
     <button data-p="sns" onclick="go('sns')">📱 SNS投稿</button>
-    <button data-p="group" onclick="go('group')" id="groupTab" style="display:none">👥 MTG・定例会（リーダー）</button>
+    <button data-p="group" onclick="go('group')" id="groupTab" style="display:none">👥 定例（リーダー）</button>
     <button data-p="transport" onclick="go('transport')">🚃 交通費</button>
     <button data-p="expense" onclick="go('expense')">💴 経費</button>
     <button data-p="budgetreq" onclick="go('budgetreq')">📈 追加予算</button>
@@ -112,20 +112,22 @@
 
   <!-- リーダーのまとめ申請 -->
   <div class="pane" id="p-group">
-    <p class="hint">MTG・定例会は、リーダーが参加者全員の分をまとめて申請します（申請時間を公平にするため）。全員に同じ時間を入れ、途中参加・途中退出の人だけ時間を変えてください。</p>
+    <p class="hint">各定例は、その定例のリーダーが参加者全員の分をまとめて申請します。細かいMTGは「稼働時間」から各自で申請してください。</p>
     <div class="grid2">
+      <div><label>定例</label><select id="grpCat" onchange="renderGroupMembers()"></select></div>
       <div><label>日付</label><input type="date" id="grpDate"></div>
-      <div><label>区分</label><select id="grpCat"></select></div>
     </div>
-    <div style="margin-top:10px"><label>内容（何を話し合ったか）</label><textarea id="grpContent" placeholder="例：10月定例会（BBQ場の施工スケジュール確認）"></textarea></div>
+    <div style="margin-top:10px"><label>内容（何を話し合ったか）</label><textarea id="grpContent" placeholder="例：10月の施工スケジュールを確認"></textarea></div>
     <div class="grid2" style="margin-top:10px">
-      <div><label>議事録などのURL（任意）</label><input type="url" id="grpUrl" placeholder="https://..."></div>
+      <div><label>議事録などのURL（必須）</label><input type="url" id="grpUrl" placeholder="https://..."></div>
       <div><label>全員の時間（分）</label><div style="display:flex;gap:6px"><input type="number" id="grpMin" min="5" step="5" placeholder="例：60" style="flex:1"><button class="btn sub" type="button" onclick="grpApplyAll()">全員に入れる</button></div></div>
     </div>
-    <div class="filter"><label style="margin:0">表示</label><select id="grpScope" onchange="renderGroupMembers()"><option value="mine">自分のPJのメンバー</option><option value="all">全メンバー</option></select>
-      <button class="mini" type="button" onclick="grpCheck(true)">全員チェック</button><button class="mini" type="button" onclick="grpCheck(false)">全員外す</button></div>
+    <h2>参加者とネクストアクション</h2>
+    <p class="hint">参加した人にチェックを入れ、時間と<b>その人のネクストアクション（次にやること）</b>を書いてください。途中参加・途中退出の人は時間を変えます。</p>
     <div id="grpMembers"></div>
-    <div class="bar"><span class="total" id="grpTotal"></span><button class="btn" id="grpSubmit" onclick="sendGroup()">まとめて申請</button></div>
+    <div class="bar"><span style="display:flex;gap:6px;flex-wrap:wrap"><select id="grpAddSel" style="width:auto"></select><button class="btn sub" type="button" onclick="grpAddMember()">＋ 参加者を追加</button></span><span class="total" id="grpTotal"></span></div>
+    <p class="hint">ほかの定例のメンバーや、ふだんは参加しない人が来たときは「＋ 参加者を追加」で足してください。</p>
+    <div class="bar"><span></span><button class="btn" id="grpSubmit" onclick="sendGroup()">まとめて申請</button></div>
     <div id="grpMsg"></div>
   </div>
 
@@ -143,11 +145,10 @@
     </div>
     <div style="margin-top:10px"><label>目的</label><input id="tPurpose" placeholder="例：10/5 BBQ場の現地活動に参加"></div>
     <h2>内訳（だれの分がいくらか）</h2>
-    <p class="hint">一緒に乗った・まとめて払った場合は、メンバーごとの金額を入れてください。支払った人（あなた）にまとめて精算されます。内訳の合計は合計金額と同じにします。</p>
+    <p class="hint"><b>ほかのメンバーの分も一緒に払ったときは「＋ メンバーを追加」で、その人と金額を足してください。</b>自分だけの分なら追加は不要です。間違えて追加したら「削除」で消せます。全額あなた（支払った人）に給与と一緒に精算されます。内訳の合計は合計金額と同じにします。</p>
     <div id="tSplit"></div>
     <div class="bar"><button class="btn sub" type="button" onclick="addSplit()">＋ メンバーを追加</button><span class="total" id="tSplitSum"></span></div>
     <div class="grid2" style="margin-top:10px">
-      <div><label>精算方法</label><select id="tSettle"></select></div>
       <div><label>備考</label><input id="tNote"></div>
       <div><label>領収書（画像・PDF）<span id="tFileNote"></span></label><input type="file" id="tFile" accept="image/*,application/pdf"></div>
     </div>
@@ -181,20 +182,17 @@
   <!-- 現地活動費 -->
   <div class="pane" id="p-genba">
     <div class="edit-banner" id="gEdit">✏️ 現地活動費を修正中です（1日分）。<button class="mini" onclick="cancelAllowEdit('genba')">修正をやめる</button></div>
-    <p class="hint">現地で活動した日は1日3,000円です。<b>1日ずつ申請</b>してください（何日もあるときは、申請するたびに日付が次の日に進むので続けて入力できます）。</p>
-    <div class="grid2">
-      <div><label>活動日</label><input type="date" id="gDate"></div>
-      <div></div>
-    </div>
-    <div style="margin-top:10px"><label>その日にしたこと</label><input id="gText" placeholder="例：BBQ場の基礎工事（型枠づくり）"></div>
-    <div class="bar"><span class="total">1日 3,000円</span><button class="btn" id="gSubmit" onclick="sendAllowance('genba')">現地活動費を申請（1日分）</button></div>
+    <p class="hint">現地で活動した日は1日3,000円です。何日分でもまとめて申請できます。<b>1日ごとに、その日にしたことを書いてください。</b></p>
+    <div id="gDays"></div>
+    <div class="bar"><button class="btn sub" type="button" id="gAdd" onclick="addGenbaDay()">＋ 日を追加（次の日）</button><span class="total" id="gTotal"></span></div>
+    <div class="bar"><span></span><button class="btn" id="gSubmit" onclick="sendAllowance('genba')">現地活動費を申請</button></div>
     <div id="gMsg"></div>
   </div>
 
   <!-- SNS投稿 -->
   <div class="pane" id="p-sns">
     <div class="edit-banner" id="sEdit">✏️ SNS投稿を修正中です。<button class="mini" onclick="cancelAllowEdit('sns')">修正をやめる</button></div>
-    <p class="hint">SNS投稿は1件2,000円です。投稿ごとに1枚入力してください。</p>
+    <p class="hint">SNS投稿は<b>フィード1件2,000円・リール1件2,500円</b>です。投稿ごとに1枚入力してください。</p>
     <div id="posts"></div>
     <button class="btn sub" id="sAdd" onclick="addPost()">＋ 投稿を追加</button>
     <div class="bar"><span class="total" id="sTotal"></span><button class="btn" id="sSubmit" onclick="sendAllowance('sns')">SNS投稿を申請</button></div>
@@ -220,7 +218,7 @@
       <div><label>購入日（支出日）</label><input type="date" id="eDate"></div>
       <div><label>金額（円・税込）</label><input type="number" id="amount" min="1"></div>
       <div><label>PJ・企画（予算元PJ）</label><select id="pj" onchange="setBudgetOpts()"></select></div>
-      <div><label>予算元（予算大項目）</label><select id="budget"></select></div>
+      <div><label>予算元（予算の大項目）</label><select id="budget"></select><span class="hint" id="budgetNote" style="color:var(--ng)"></span></div>
     </div>
     <div style="margin-top:10px"><label>内容（何のために何を買ったか）</label><textarea id="content" placeholder="例：いすみ模型用の竹加工材料"></textarea></div>
     <div class="grid2" style="margin-top:10px">
@@ -332,15 +330,16 @@ google.script.run.withSuccessHandler(init => {
   $('member').innerHTML = opts(init.members.map(m => m.name), '選択してください');
   if (B.member) $('member').value = B.member;
   if (B.lock) { $('member').style.display = 'none'; $('memberFixed').style.display = ''; $('memberFixed').textContent = B.member; }
-  ['aDate', 'eDate', 'gDate', 'tDate', 'grpDate'].forEach(k => { $(k).min = `${init.fy}-04-01`; $(k).max = `${init.fy + 1}-03-31`; $(k).value = today(); });
-  addPost();
-  $('tMode').innerHTML = opts(init.transports, '選択'); $('tPj').innerHTML = opts(init.pjs, '選択'); $('tSettle').innerHTML = opts(init.settles);
+  ['aDate', 'eDate', 'tDate', 'grpDate'].forEach(k => { $(k).min = `${init.fy}-04-01`; $(k).max = `${init.fy + 1}-03-31`; $(k).value = today(); });
+  addPost(); addGenbaDay();
+  $('tMode').innerHTML = opts(init.transports, '選択'); $('tPj').innerHTML = opts(init.pjs, '選択');
   $('bPj').innerHTML = opts(init.pjs, '選択');
   $('bMonth').innerHTML = opts([4,5,6,7,8,9,10,11,12,1,2,3].map(m => `${m < 4 ? init.fy + 1 : init.fy}年${m}月`), '選択');
-  $('grpCat').innerHTML = opts(init.groupCategories, '選択');
+  const myMeetings = (init.meetings || []).filter(x => x.leader === (B.member || ''));
+  $('grpCat').innerHTML = opts(myMeetings.map(x => x.name), myMeetings.length > 1 ? '選択' : '');
   const me = init.members.find(m => m.name === (B.member || ''));
   if (me && me.pj) { $('tPj').value = me.pj; $('bPj').value = me.pj; }
-  if (me && me.leader) $('groupTab').style.display = '';
+  if (myMeetings.length) $('groupTab').style.display = '';
   resetTransport(); renderGroupMembers();
   $('pj').innerHTML = opts(init.pjs, '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('store').innerHTML = opts(init.stores, '選択');
   $('hMonth').innerHTML = '<option value="">すべて</option>' + [4,5,6,7,8,9,10,11,12,1,2,3].map(m => `<option value="${m}">${m}月</option>`).join('');
@@ -373,7 +372,7 @@ function addItem(v) {
       <div class="chips">${[15,30,60,90,120,180].map(x=>`<button type="button" onclick="setMin(this,${x})">${x<60?x+'分':x/60+'時間'}</button>`).join('')}</div></div></div>
     <div class="row"><label>活動区分</label><select class="cat">${opts(INIT.categories, '選択')}</select></div>
     <div class="row"><label>活動内容</label><textarea class="content" placeholder="何のために何をしたか">${esc(v.content || '')}</textarea></div>
-    <div class="row"><label>成果物URL</label><input type="url" class="url" placeholder="https://...（任意）" value="${esc(v.url || '')}"></div>`;
+    <div class="row"><label>成果物URL（必須）</label><input type="url" class="url" placeholder="https://...（必須）" value="${esc(v.url || '')}"></div>`;
   $('items').appendChild(d);
   if (v.category) d.querySelector('.cat').value = v.category;
   sum();
@@ -397,7 +396,7 @@ function sendActivity() {
   if (!member()) errs.push('メンバーを選択してください');
   if (!$('aDate').value) errs.push('活動日を選択してください');
   if (!items.length) errs.push('活動を1件以上入力してください');
-  items.forEach((i, n) => { if (!(Number(i.minutes) > 0) || !i.category || !i.content) errs.push(`活動${n + 1}：時間・区分・内容は必須です`); });
+  items.forEach((i, n) => { if (!(Number(i.minutes) > 0) || !i.category || !i.content) errs.push(`活動${n + 1}：時間・区分・内容は必須です`); if (!/^https?:\/\/\S+/.test(i.url)) errs.push(`活動${n + 1}：成果物などのURLは必須です（資料・投稿・議事録などのリンク）`); });
   if (errs.length) return msg('aMsg', 'ng', errs.join('\n'));
   $('aSubmit').disabled = true; msg('aMsg', 'warn', '反映中…');
   const done = res => {
@@ -420,6 +419,21 @@ const pad = n => String(n).padStart(2, '0');
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
 
+function addGenbaDay(date, content) {
+  const rows = document.querySelectorAll('#gDays .gRowDay');
+  if (!date) {
+    const last = rows.length ? rows[rows.length - 1].querySelector('.gD').value : '';
+    if (last) { const d = new Date(last + 'T00:00'); d.setDate(d.getDate() + 1); date = ymd(d); } else date = today();
+  }
+  const d = document.createElement('div');
+  d.className = 'card gRowDay';
+  d.innerHTML = `<button class="del" type="button" onclick="this.parentNode.remove();genbaSum()">削除</button>
+    <div class="row"><label>活動日</label><input type="date" class="gD" value="${date}" min="${INIT.fy}-04-01" max="${INIT.fy + 1}-03-31"></div>
+    <div class="row"><label>その日にしたこと</label><input class="gT" placeholder="例：BBQ場の基礎工事（型枠づくり）" value="${esc(content || '')}"></div>`;
+  $('gDays').appendChild(d);
+  genbaSum();
+}
+function genbaSum() { const n = document.querySelectorAll('#gDays .gRowDay').length; $('gTotal').textContent = n ? `${n}日 × 3,000円 ＝ ${(n * 3000).toLocaleString()}円` : ''; }
 function addPost(v) {
   v = v || {};
   const d = document.createElement('div');
@@ -427,24 +441,27 @@ function addPost(v) {
   d.innerHTML = `
     <button class="del" onclick="this.parentNode.remove();snsSum()">削除</button>
     <div class="row"><label>投稿日</label><input type="date" class="pDate" value="${v.date || today()}"></div>
+    <div class="row"><label>種類</label><select class="pKind" onchange="snsSum()"><option value="フィード">フィード（2,000円）</option><option value="リール">リール（2,500円）</option></select></div>
     <div class="row"><label>内容</label><input class="pText" placeholder="例：DOBOLAND公式Instagramで9月の現地活動を紹介" value="${esc(v.content || '')}"></div>
     <div class="row"><label>投稿URL</label><input type="url" class="pUrl" placeholder="https://..." value="${esc(v.url || '')}"></div>`;
   $('posts').appendChild(d);
+  if (v.snsKind) d.querySelector('.pKind').value = v.snsKind;
   snsSum();
 }
 function snsSum() {
-  const n = document.querySelectorAll('#posts .card').length;
-  $('sTotal').textContent = n ? `${n}件 × 2,000円 ＝ ${(n * 2000).toLocaleString()}円` : '';
+  const ks = [...document.querySelectorAll('#posts .pKind')].map(x => x.value);
+  const yen = ks.reduce((t, k) => t + (k === 'リール' ? 2500 : 2000), 0);
+  $('sTotal').textContent = ks.length ? `${ks.length}件（フィード${ks.filter(k => k !== 'リール').length}・リール${ks.filter(k => k === 'リール').length}）＝ ${yen.toLocaleString()}円` : '';
 }
 function readAllowance(t) {
-  if (t === 'genba') return [{ date: $('gDate').value, content: $('gText').value.trim() }];
-  return [...document.querySelectorAll('#posts .card')].map(c => ({ date: c.querySelector('.pDate').value, content: c.querySelector('.pText').value.trim(), url: c.querySelector('.pUrl').value.trim() }));
+  if (t === 'genba') return [...document.querySelectorAll('#gDays .gRowDay')].map(r => ({ date: r.querySelector('.gD').value, content: r.querySelector('.gT').value.trim() }));
+  return [...document.querySelectorAll('#posts .card')].map(c => ({ date: c.querySelector('.pDate').value, kind: c.querySelector('.pKind').value, content: c.querySelector('.pText').value.trim(), url: c.querySelector('.pUrl').value.trim() }));
 }
 function sendAllowance(t) {
   const P = t === 'genba' ? 'g' : 's';
   const entries = readAllowance(t), errs = [];
   if (!member()) errs.push('メンバーを選択してください');
-  if (!entries.length) errs.push('投稿を1件以上入力してください');
+  if (!entries.length) errs.push(t === 'genba' ? '活動した日を1日以上入れてください' : '投稿を1件以上入力してください');
   entries.forEach(e => { if (!e.date || !e.content) errs.push(`${e.date || '日付なし'}：日付と内容は必須です`); if (t === 'sns' && !e.url) errs.push(`${e.date}：投稿URLを入れてください`); });
   if (errs.length) return msg(P + 'Msg', 'ng', errs.join('\n'));
   $(P + 'Submit').disabled = true; msg(P + 'Msg', 'warn', '申請中…');
@@ -453,16 +470,13 @@ function sendAllowance(t) {
     const lines = r.results.map(x => `${x.date.slice(5).replace('-', '/')}：${x.status}${x.reason ? '（' + x.reason + '）' : ''}`);
     const ok = r.results.every(x => /済$/.test(x.status));
     msg(P + 'Msg', ok ? 'ok' : 'warn', `${r.days}件を申請しました（${r.amount.toLocaleString()}円）\n` + lines.join('\n'));
-    if (ok) {
-      if (t === 'genba' && !allowEdit.genba) { const d = new Date($('gDate').value + 'T00:00'); d.setDate(d.getDate() + 1); if (ymd(d) <= $('gDate').max) $('gDate').value = ymd(d); }   // 続けて次の日を入力できるように
-      cancelAllowEdit(t, true); HIST = null;
-    }
+    if (ok) { cancelAllowEdit(t, true); HIST = null; }
   }).withFailureHandler(e => { $(P + 'Submit').disabled = false; msg(P + 'Msg', 'ng', 'エラー：' + e.message); })
     .submitAllowance({ member: member(), type: t, entries: allowEdit[t] ? entries.slice(0, 1) : entries, id: allowEdit[t] ? allowEdit[t].id : '' });
 }
 function cancelAllowEdit(t, keepMsg) {
   allowEdit[t] = null;
-  if (t === 'genba') { $('gEdit').style.display = 'none'; $('gText').value = ''; $('gSubmit').textContent = '現地活動費を申請（1日分）'; }
+  if (t === 'genba') { $('gEdit').style.display = 'none'; $('gAdd').style.display = ''; $('gDays').innerHTML = ''; addGenbaDay(); $('gSubmit').textContent = '現地活動費を申請'; }
   else { $('sEdit').style.display = 'none'; $('sAdd').style.display = ''; $('posts').innerHTML = ''; addPost(); $('sSubmit').textContent = 'SNS投稿を申請'; }
   if (!keepMsg) msg(t === 'genba' ? 'gMsg' : 'sMsg');
 }
@@ -470,8 +484,8 @@ function editAllow(i) {
   const a = HIST.allowances[i];
   allowEdit[a.type] = a;
   if (a.type === 'genba') {
-    $('gDate').value = a.date; $('gText').value = a.content;
-    $('gEdit').style.display = 'block'; $('gSubmit').textContent = '修正を保存';
+    $('gDays').innerHTML = ''; addGenbaDay(a.date, a.content);
+    $('gEdit').style.display = 'block'; $('gAdd').style.display = 'none'; $('gSubmit').textContent = '修正を保存';
   } else {
     $('posts').innerHTML = ''; addPost(a);
     $('sEdit').style.display = 'block'; $('sAdd').style.display = 'none'; $('sSubmit').textContent = '修正を保存';
@@ -493,10 +507,10 @@ function readFileInput(id) {
 function setBudgetOpts(keep) {
   if (!INIT) return;
   const cur = keep || $('budget').value;
-  const own = (INIT.budgetsByPj || {})[$('pj').value] || [];
-  const list = [...new Set((own.length ? own : INIT.budgets).concat(['その他（予算外）'], cur ? [cur] : []))];
-  $('budget').innerHTML = opts(list, '選択');
+  const list = (INIT.budgetsByPj || {})[$('pj').value] || [];
+  $('budget').innerHTML = list.length ? opts(list, '選択') : '<option value="">（このPJには予算がありません）</option>';
   if (list.includes(cur)) $('budget').value = cur;
+  $('budgetNote').textContent = $('pj').value && !list.length ? 'このPJ・企画には予算がないため経費を申請できません。先に「追加予算」を申請してください。' : '';
 }
 function resetExpense() {
   ['content','amount','store','storeOther','note','file','rcpt'].forEach(k => $(k).value = ''); onStore();
@@ -559,7 +573,7 @@ function resetTransport() {
 function cancelTransEdit() { resetTransport(); msg('tMsg'); }
 async function sendTransport() {
   const p = { id: transEdit ? transEdit.id : '', member: member(), date: $('tDate').value, mode: $('tMode').value, from: $('tFrom').value.trim(), to: $('tTo').value.trim(), roundTrip: $('tTrip').value,
-    pj: $('tPj').value, amount: $('tAmount').value, purpose: $('tPurpose').value.trim(), split: readSplit(), settle: $('tSettle').value, note: $('tNote').value.trim(), samePaper: false };
+    pj: $('tPj').value, amount: $('tAmount').value, purpose: $('tPurpose').value.trim(), split: readSplit(), settle: '本人立替（給与で精算）', note: $('tNote').value.trim(), samePaper: false };
   p.route = p.from && p.to ? `${p.from} → ${p.to}` : '';
   const miss = [['date','利用日'],['mode','交通手段'],['from','どこから'],['to','どこまで'],['pj','PJ・企画'],['amount','合計金額']].filter(([k]) => !p[k]).map(([,n]) => n);
   if (miss.length) return msg('tMsg', 'ng', '未入力：' + miss.join('、'));
@@ -579,7 +593,7 @@ function editTrans(i) {
   if (!x.mine) return msg('hMsg', 'warn', 'この交通費は支払った人（' + x.payer + '）が修正します');
   transEdit = x;
   $('tDate').value = x.date; $('tMode').value = x.mode; const rt = String(x.route || '').split(/\s*(?:→|->|～|〜)\s*/); $('tFrom').value = rt[0] || ''; $('tTo').value = rt.slice(1).join(' → '); $('tTrip').value = x.roundTrip || '片道'; $('tPj').value = x.pj;
-  $('tAmount').value = x.amount; $('tPurpose').value = x.purpose; $('tSettle').value = x.settle; $('tNote').value = String(x.note || '').replace(/（[^）]*修正）$/, '');
+  $('tAmount').value = x.amount; $('tPurpose').value = x.purpose; $('tNote').value = String(x.note || '').replace(/（[^）]*修正）$/, '');
   $('tSplit').innerHTML = ''; x.split.forEach(s => addSplit(s.name, s.amount));
   document.querySelectorAll('#tSplit .sAmt').forEach(a => a.dataset.touched = '1');
   transSum();
@@ -615,31 +629,36 @@ function editBud(i) {
 }
 
 /* ---------- リーダーのまとめ申請 ---------- */
-function renderGroupMembers() {
+function renderGroupMembers(extra) {
   if (!INIT) return;
-  const me = INIT.members.find(m => m.name === (B.member || member())) || {};
-  const all = $('grpScope').value === 'all';
-  const list = INIT.members.filter(m => all || m.pj === me.pj);
+  const mt = (INIT.meetings || []).find(x => x.name === $('grpCat').value);
   const prev = {};
-  document.querySelectorAll('#grpMembers .gRow').forEach(r => prev[r.dataset.name] = { on: r.querySelector('.gOn2').checked, min: r.querySelector('.gMin').value });
-  $('grpMembers').innerHTML = `<table class="list"><tr><th style="width:40px">参加</th><th>メンバー</th><th style="width:70px">PJ</th><th style="width:130px">時間（分）</th></tr>` +
-    list.map(m => { const p = prev[m.name] || { on: !all, min: $('grpMin').value };
-      return `<tr class="gRow" data-name="${esc(m.name)}"><td><input type="checkbox" class="gOn2" style="width:auto" ${p.on ? 'checked' : ''} onchange="grpSum()"></td><td>${esc(m.name)}</td><td>${esc(m.pj)}</td>
-        <td><input type="number" class="gMin" min="5" step="5" value="${esc(p.min || '')}" oninput="grpSum()"></td></tr>`; }).join('') + '</table>';
+  document.querySelectorAll('#grpMembers .gRow').forEach(r => prev[r.dataset.name] = { on: r.querySelector('.gOn2').checked, min: r.querySelector('.gMin').value, next: r.querySelector('.gNext').value, added: r.dataset.added });
+  if (!mt) { $('grpMembers').innerHTML = '<p class="hint">定例を選んでください</p>'; $('grpAddSel').innerHTML = ''; return grpSum(); }
+  const names = [...new Set(mt.members.concat(Object.keys(prev).filter(n => prev[n].added), extra ? [extra] : []))];
+  const pjOf = n => (INIT.members.find(m => m.name === n) || {}).pj || '';
+  $('grpMembers').innerHTML = `<table class="list"><tr><th style="width:40px">参加</th><th>メンバー</th><th style="width:100px">時間（分）</th><th>ネクストアクション（必須）</th></tr>` +
+    names.map(n => { const p = prev[n] || { on: true, min: $('grpMin').value, next: '', added: n === extra || !mt.members.includes(n) ? '1' : '' };
+      return `<tr class="gRow" data-name="${esc(n)}" data-added="${p.added || ''}"><td><input type="checkbox" class="gOn2" style="width:auto" ${p.on ? 'checked' : ''} onchange="grpSum()"></td>
+        <td>${esc(n)}<br><span class="hint">${esc(pjOf(n))}${p.added ? '・追加' : ''}</span></td>
+        <td><input type="number" class="gMin" min="5" step="5" value="${esc(p.min || '')}" oninput="grpSum()"></td>
+        <td><input class="gNext" placeholder="例：11/5までに見積もりを集める" value="${esc(p.next || '')}"></td></tr>`; }).join('') + '</table>';
+  $('grpAddSel').innerHTML = opts(INIT.members.map(m => m.name).filter(n => !names.includes(n)), '参加者を選ぶ');
   grpSum();
 }
+function grpAddMember() { const n = $('grpAddSel').value; if (!n) return; renderGroupMembers(n); }
 function grpApplyAll() { document.querySelectorAll('#grpMembers .gRow').forEach(r => { if (r.querySelector('.gOn2').checked) r.querySelector('.gMin').value = $('grpMin').value; }); grpSum(); }
-function grpCheck(on) { document.querySelectorAll('#grpMembers .gOn2').forEach(c => c.checked = on); grpSum(); }
-function readGroup() { return [...document.querySelectorAll('#grpMembers .gRow')].filter(r => r.querySelector('.gOn2').checked).map(r => ({ name: r.dataset.name, minutes: Number(r.querySelector('.gMin').value) || 0 })); }
-function grpSum() { const l = readGroup(); $('grpTotal').textContent = `${l.length}人` + (l.some(x => !x.minutes) ? '（時間が空の人がいます）' : ''); }
+function readGroup() { return [...document.querySelectorAll('#grpMembers .gRow')].filter(r => r.querySelector('.gOn2').checked).map(r => ({ name: r.dataset.name, minutes: Number(r.querySelector('.gMin').value) || 0, next: r.querySelector('.gNext').value.trim() })); }
+function grpSum() { const l = readGroup(); $('grpTotal').textContent = `${l.length}人` + (l.some(x => !x.minutes) ? '（時間が空の人がいます）' : '') + (l.some(x => !x.next) ? '（ネクストアクションが空の人がいます）' : ''); }
 function sendGroup() {
   const members = readGroup();
   const p = { leader: B.member || member(), date: $('grpDate').value, category: $('grpCat').value, content: $('grpContent').value.trim(), url: $('grpUrl').value.trim(), members };
   const errs = [];
-  if (!p.date) errs.push('日付'); if (!p.category) errs.push('区分'); if (!p.content) errs.push('内容');
+  if (!p.date) errs.push('日付'); if (!p.category) errs.push('定例'); if (!p.content) errs.push('内容'); if (!/^https?:\/\/\S+/.test(p.url)) errs.push('議事録などのURL');
   if (errs.length) return msg('grpMsg', 'ng', '未入力：' + errs.join('、'));
   if (!members.length) return msg('grpMsg', 'ng', '参加したメンバーにチェックを入れてください');
   if (members.some(x => !x.minutes)) return msg('grpMsg', 'ng', 'チェックした人全員に時間を入れてください');
+  if (members.some(x => !x.next)) return msg('grpMsg', 'ng', 'チェックした人全員のネクストアクションを書いてください');
   $('grpSubmit').disabled = true; msg('grpMsg', 'warn', `${members.length}人分を申請中…（1人数秒かかります）`);
   google.script.run.withSuccessHandler(rs => {
     $('grpSubmit').disabled = false;
@@ -674,7 +693,7 @@ function renderHistory() {
     const rows = HIST.allowances.map((a, i) => [a, i]).filter(([a]) => a.type === k && inMonth(a.date));
     const sum = rows.reduce((s, [a]) => s + Number(a.amount || 0), 0);
     html = (rows.length ? `<p class="hint">${rows.length}件　合計 ${yen(sum)}</p>` : '') + table(['日付', '内容', k === 'sns' ? '投稿' : '', '金額', ''], rows.map(([a, i]) =>
-      `<tr><td>${md(a.date)}</td><td>${esc(a.content)}</td><td>${k === 'sns' ? link(a.url, '開く') : ''}</td><td class="num">${yen(a.amount)}</td><td><button class="mini" onclick="editAllow(${i})">修正</button>${delBtn('allow', i)}</td></tr>`), '記録はありません');
+      `<tr><td>${md(a.date)}</td><td>${k === 'sns' ? `<span class="badge">${esc(a.snsKind)}</span> ` : ''}${esc(a.content)}</td><td>${k === 'sns' ? link(a.url, '開く') : ''}</td><td class="num">${yen(a.amount)}</td><td><button class="mini" onclick="editAllow(${i})">修正</button>${delBtn('allow', i)}</td></tr>`), '記録はありません');
   } else if (k === 'transport') {
     html = table(['利用日', '手段', '区間', '合計', '内訳', '状態', ''], HIST.transports.map((x, i) => [x, i]).filter(([x]) => inMonth(x.date)).map(([x, i]) =>
       `<tr><td>${md(x.date)}</td><td>${esc(x.mode)}</td><td>${esc(x.route)}${link(x.url, '領収書')}${x.receipt && x.receipt !== x.url ? link(x.receipt, 'レシート') : ''}</td><td class="num">${yen(x.amount)}</td>
