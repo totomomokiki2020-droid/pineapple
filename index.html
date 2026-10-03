@@ -180,7 +180,7 @@
   <!-- 現地活動費 -->
   <div class="pane" id="p-genba">
     <div class="edit-banner" id="gEdit">✏️ 現地活動費を修正中です（1日分）。<button class="mini" onclick="cancelAllowEdit('genba')">修正をやめる</button></div>
-    <p class="hint">現地で活動した日は1日3,000円です。何日分でもまとめて申請できます。<b>1日ごとに、その日にしたことを書いてください。</b></p>
+    <p class="hint"><span id="genbaPrice">現地で活動した日は1日3,000円です。</span>何日分でもまとめて申請できます。<b>1日ごとに、その日にしたことを書いてください。</b></p>
     <div id="gDays"></div>
     <div class="bar"><button class="btn sub" type="button" id="gAdd" onclick="addGenbaDay()">＋ 日を追加（次の日）</button><span class="total" id="gTotal"></span></div>
     <div class="bar"><span></span><button class="btn" id="gSubmit" onclick="sendAllowance('genba')">現地活動費を申請</button></div>
@@ -190,7 +190,7 @@
   <!-- SNS投稿 -->
   <div class="pane" id="p-sns">
     <div class="edit-banner" id="sEdit">✏️ SNS投稿を修正中です。<button class="mini" onclick="cancelAllowEdit('sns')">修正をやめる</button></div>
-    <p class="hint">SNS投稿は<b>フィード1件2,000円・リール1件2,500円</b>です。投稿ごとに1枚入力してください。</p>
+    <p class="hint" id="snsHint">投稿ごとに1枚入力してください。</p>
     <div id="posts"></div>
     <button class="btn sub" id="sAdd" onclick="addPost()">＋ 投稿を追加</button>
     <div class="bar"><span class="total" id="sTotal"></span><button class="btn" id="sSubmit" onclick="sendAllowance('sns')">SNS投稿を申請</button></div>
@@ -338,6 +338,8 @@ google.script.run.withSuccessHandler(init => {
   if (B.member) $('member').value = B.member;
   if (B.lock) { $('member').style.display = 'none'; $('memberFixed').style.display = ''; $('memberFixed').textContent = B.member; }
   ['aDate', 'eDate', 'tDate', 'grpDate'].forEach(k => { $(k).min = monthMin(); $(k).max = monthMax(); $(k).value = today(); });
+  $('genbaPrice').textContent = `現地で活動した日は1日${Number(init.genbaUnit || 3000).toLocaleString()}円です。`;
+  $('snsHint').textContent = 'SNS投稿は ' + (init.snsKinds || []).map(k => `${k.name} 1件${Number(k.unit).toLocaleString()}円`).join('・') + ' です。投稿ごとに1枚入力してください。';
   addPost(); addGenbaDay();
   $('tMode').innerHTML = opts(init.transports, '選択'); $('tPj').innerHTML = opts(init.pjs, '選択');
   $('bPj').innerHTML = opts(init.pjs, '選択');
@@ -444,7 +446,7 @@ function addGenbaDay(date, content) {
   $('gDays').appendChild(d);
   genbaSum();
 }
-function genbaSum() { const n = document.querySelectorAll('#gDays .gRowDay').length; $('gTotal').textContent = n ? `${n}日 × 3,000円 ＝ ${(n * 3000).toLocaleString()}円` : ''; }
+function genbaSum() { const n = document.querySelectorAll('#gDays .gRowDay').length, u = INIT.genbaUnit || 3000; $('gTotal').textContent = n ? `${n}日 × ${u.toLocaleString()}円 ＝ ${(n * u).toLocaleString()}円` : ''; }
 function addPost(v) {
   v = v || {};
   const d = document.createElement('div');
@@ -452,7 +454,7 @@ function addPost(v) {
   d.innerHTML = `
     <button class="del" onclick="this.parentNode.remove();snsSum()">削除</button>
     <div class="row"><label>投稿日</label><input type="date" class="pDate" value="${v.date || today()}" min="${monthMin()}" max="${monthMax()}"></div>
-    <div class="row"><label>種類</label><select class="pKind" onchange="snsSum()"><option value="フィード">フィード投稿（2,000円）</option><option value="リール">リール投稿（2,500円）</option></select></div>
+    <div class="row"><label>種類</label><select class="pKind" onchange="snsSum()">${(INIT.snsKinds || []).map(k => `<option value="${esc(k.name)}">${esc(k.name)}（${Number(k.unit).toLocaleString()}円）</option>`).join('')}</select></div>
     <div class="row"><label>内容</label><input class="pText" placeholder="例：DOBOLAND公式Instagramで9月の現地活動を紹介" value="${esc(v.content || '')}"></div>
     `;
   $('posts').appendChild(d);
@@ -461,8 +463,9 @@ function addPost(v) {
 }
 function snsSum() {
   const ks = [...document.querySelectorAll('#posts .pKind')].map(x => x.value);
-  const yen = ks.reduce((t, k) => t + (k === 'リール' ? 2500 : 2000), 0);
-  $('sTotal').textContent = ks.length ? `${ks.length}件（フィード${ks.filter(k => k !== 'リール').length}・リール${ks.filter(k => k === 'リール').length}）＝ ${yen.toLocaleString()}円` : '';
+  const price = k => ((INIT.snsKinds || []).find(x => x.name === k) || {}).unit || 0;
+  const yen = ks.reduce((t, k) => t + price(k), 0);
+  $('sTotal').textContent = ks.length ? `${ks.length}件 ＝ ${yen.toLocaleString()}円` : '';
 }
 function readAllowance(t) {
   if (t === 'genba') return [...document.querySelectorAll('#gDays .gRowDay')].map(r => ({ date: r.querySelector('.gD').value, content: r.querySelector('.gT').value.trim() }));
@@ -728,7 +731,7 @@ function renderHistory() {
     const rows = HIST.allowances.map((a, i) => [a, i]).filter(([a]) => a.type === k && inMonth(a.date));
     const sum = rows.reduce((s, [a]) => s + Number(a.amount || 0), 0);
     html = (rows.length ? `<p class="hint">${rows.length}件　合計 ${yen(sum)}</p>` : '') + table(['日付', '内容', k === 'sns' ? '投稿' : '', '金額', ''], rows.map(([a, i]) =>
-      `<tr><td>${md(a.date)}</td><td>${k === 'sns' ? `<span class="badge">${esc(a.snsKind)}投稿</span> ` : ''}${esc(a.content)}</td><td>${k === 'sns' ? link(a.url, '開く') : ''}</td><td class="num">${yen(a.amount)}</td><td><button class="mini" onclick="editAllow(${i})">修正</button>${delBtn('allow', i)}</td></tr>`), '記録はありません');
+      `<tr><td>${md(a.date)}</td><td>${k === 'sns' ? `<span class="badge">${esc(/投稿$/.test(a.snsKind) ? a.snsKind : a.snsKind + '投稿')}</span> ` : ''}${esc(a.content)}</td><td>${k === 'sns' ? link(a.url, '開く') : ''}</td><td class="num">${yen(a.amount)}</td><td><button class="mini" onclick="editAllow(${i})">修正</button>${delBtn('allow', i)}</td></tr>`), '記録はありません');
   } else if (k === 'transport') {
     html = table(['利用日', '手段', '区間', '合計', '内訳', '状態', ''], HIST.transports.map((x, i) => [x, i]).filter(([x]) => inMonth(x.date)).map(([x, i]) =>
       `<tr><td>${md(x.date)}</td><td>${esc(x.mode)}</td><td>${esc(x.route)}${link(x.url, '領収書')}${x.receipt && x.receipt !== x.url ? link(x.receipt, 'レシート') : ''}</td><td class="num">${yen(x.amount)}</td>
