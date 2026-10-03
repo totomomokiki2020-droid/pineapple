@@ -355,7 +355,7 @@ google.script.run.withSuccessHandler(init => {
   $('groupTab').style.display = '';
   renderGroupMembers();
   resetTransport(); renderGroupMembers();
-  $('pj').innerHTML = opts(init.pjs, '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('staff').innerHTML = opts(init.staff || [], '払った社員を選ぶ'); $('store').innerHTML = opts(init.stores, '選択');
+  $('pj').innerHTML = opts(init.pjs.filter(p => p !== 'DL全体'), '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('staff').innerHTML = opts(init.staff || [], '払った社員を選ぶ'); $('store').innerHTML = opts(init.stores, '選択');
   $('hMonth').innerHTML = '<option value="">すべて</option>' + [4,5,6,7,8,9,10,11,12,1,2,3].map(m => `<option value="${m}">${m}月</option>`).join('');
   addItem(); onMember(); go(B.page === 'activity' ? 'work' : (B.page || 'work'));
 }).withFailureHandler(e => msg('aMsg', 'ng', '読み込みエラー：' + (e && e.message || e))).getFormInit();
