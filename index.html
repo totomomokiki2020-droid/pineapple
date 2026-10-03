@@ -264,7 +264,7 @@ function pineStart(auth) {
 }
 function pineShowLogin() { document.getElementById('login').style.display = 'flex'; setTimeout(() => document.getElementById('pin').focus(), 50); }
 function pineLogout() {
-  try { localStorage.removeItem(PINE_KEY); } catch (e) { /* 保存できない端末 */ }
+  try { localStorage.removeItem(PINE_KEY); localStorage.removeItem('pineapple_init'); } catch (e) { /* 保存できない端末 */ }
   location.reload();
 }
 async function pinePost(body) {
@@ -331,9 +331,22 @@ const MONTH_NG = () => `今月（${Number(today().slice(5, 7))}月1日〜月末�
 function msg(id, cls, text) { $(id).innerHTML = text ? `<div class="msg ${cls}">${esc(text)}</div>` : ''; }
 function member() { return $('member').value; }
 
-msg('aMsg', 'warn', '読み込み中…（数秒かかります）');
+// 起動を速くする：前回の初期データがあればすぐ画面を出し、最新は裏で受け取る（入力を始めていたら次回の起動から反映）
+const INIT_KEY = 'pineapple_init';
+let TOUCHED = false;
+document.addEventListener('input', () => { TOUCHED = true; }, true);
+let cachedInit = null;
+try { cachedInit = JSON.parse(localStorage.getItem(INIT_KEY) || 'null'); } catch (e) { cachedInit = null; }
+if (!cachedInit) msg('aMsg', 'warn', '読み込み中…');
+(typeof pineAuthed !== 'undefined' ? pineAuthed : Promise.resolve()).then(() => { if (cachedInit && !INIT) applyInit(cachedInit); });
 google.script.run.withSuccessHandler(init => {
-  INIT = init; msg('aMsg');
+  try { localStorage.setItem(INIT_KEY, JSON.stringify(init)); } catch (e) { /* 保存できない端末 */ }
+  if (!INIT || (!TOUCHED && JSON.stringify(init) !== JSON.stringify(INIT))) applyInit(init);
+}).withFailureHandler(e => { if (!INIT) msg('aMsg', 'ng', '読み込みエラー：' + (e && e.message || e)); }).getFormInit();
+
+function applyInit(init) {
+  INIT = init; msg('aMsg'); msg('grpMsg'); $('grpSubmit').disabled = false;
+  ['items', 'posts', 'gDays'].forEach(k => { $(k).innerHTML = ''; });
   $('member').innerHTML = opts(init.members.map(m => m.name), '選択してください');
   if (B.member) $('member').value = B.member;
   if (B.lock) { $('member').style.display = 'none'; $('memberFixed').style.display = ''; $('memberFixed').textContent = B.member; }
@@ -357,8 +370,8 @@ google.script.run.withSuccessHandler(init => {
   resetTransport(); renderGroupMembers();
   $('pj').innerHTML = opts(init.pjs.filter(p => p !== 'DL全体'), '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('staff').innerHTML = opts(init.staff || [], '払った社員を選ぶ'); $('store').innerHTML = opts(init.stores, '選択');
   $('hMonth').innerHTML = '<option value="">すべて</option>' + [4,5,6,7,8,9,10,11,12,1,2,3].map(m => `<option value="${m}">${m}月</option>`).join('');
-  addItem(); onMember(); go(B.page === 'activity' ? 'work' : (B.page || 'work'));
-}).withFailureHandler(e => msg('aMsg', 'ng', '読み込みエラー：' + (e && e.message || e))).getFormInit();
+  addItem(); onMember(); go(document.querySelector('.tabs button.on') ? document.querySelector('.tabs button.on').dataset.p : (B.page === 'activity' ? 'work' : (B.page || 'work')));
+}
 
 function go(p) {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
