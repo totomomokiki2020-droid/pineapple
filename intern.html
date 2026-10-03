@@ -87,7 +87,10 @@
   <div class="field"><label class="req">あなたが紹介した人数</label>
     <select id="referCount"></select></div>
   <div id="referredBox"></div>
-  <div class="field"><label>あなたを紹介した人の名前（いなければ空欄）</label><input id="referredBy" placeholder="例）佐藤太郎"></div>
+  <div class="field"><label class="req">あなたを紹介した人はいますか</label>
+    <select id="hasReferrer"><option value="">選択</option><option>いる</option><option>いない</option></select></div>
+  <div class="field hidden" id="referrerCountBox"><label class="req">あなたを紹介した人の人数</label><select id="referrerCount"></select></div>
+  <div id="referrerBox"></div>
 
   <h2>交通費（領収書1枚ごとに入力）</h2>
   <p class="note">区間は「どこから」「どこまで」の地名・駅名だけを書いてください。領収書は1枚ずつ必ずアップロードしてください。</p>
@@ -141,9 +144,23 @@ async function post(body) {
   if (!j.ok) throw new Error(j.error);
   return j.data;
 }
+/** あなたを紹介した人（いる場合だけ。名前は「、」でまとめる） */
+const referredByNames = () => $('hasReferrer').value === 'いる' ? [...document.querySelectorAll('.byName')].map(e => e.value.trim()) : [];
+const referredByText = () => referredByNames().filter(Boolean).join('、');
+const isReferred = () => $('hasReferrer').value === 'いる' && referredByNames().some(Boolean);
+function renderReferrer() {
+  const on = $('hasReferrer').value === 'いる';
+  $('referrerCountBox').classList.toggle('hidden', !on);
+  const n = on ? Number($('referrerCount').value) || 1 : 0;
+  const old = [...document.querySelectorAll('.byName')].map(e => e.value);
+  let h = '';
+  for (let i = 0; i < n; i++) h += `<div class="field"><label class="req">あなたを紹介した人の名前${n > 1 ? `（${i + 1}人目）` : ''}</label><input class="byName" value="${esc(old[i] || '')}" placeholder="例）佐藤太郎" oninput="refresh()"></div>`;
+  $('referrerBox').innerHTML = h;
+  refresh();
+}
 function rateOf(count) {
   let n = Math.max(0, Number(count) || 0);
-  const referred = !!$('referredBy').value.trim(), modes = INIT.referredModes || [];
+  const referred = isReferred(), modes = INIT.referredModes || [];
   if (referred && INIT.referred === modes[1]) n++;
   let r = 0; INIT.rates.forEach(x => { if (n >= x.count) r = x.rate; });
   if (referred && INIT.referred === modes[0]) r = Math.max(r, Number(INIT.referredRate) || 0);
@@ -159,12 +176,12 @@ function calc() {
 }
 function refresh() {
   const c = calc();
-  $('sTotal').textContent = yen(c.total); $('sCount').textContent = c.count; $('sRate').textContent = Math.round(c.rate * 100) + '%' + ($('referredBy').value.trim() ? '（紹介された分を含む）' : '');
+  $('sTotal').textContent = yen(c.total); $('sCount').textContent = c.count; $('sRate').textContent = Math.round(c.rate * 100) + '%' + (isReferred() ? '（紹介された分を含む）' : '');
   $('sDisc').textContent = yen(c.pay); $('sSelf').textContent = yen(c.self); $('sPay').textContent = yen(c.pay);
   const notes = [];
   const modes = (INIT && INIT.referredModes) || [];
-  if (!c.count && !$('referredBy').value.trim()) notes.push('友達を紹介した人・紹介された人だけが対象です（どちらもないときは支給されません）。');
-  if ($('referredBy').value.trim() && INIT && INIT.referred === modes[2]) notes.push('紹介された側の割引は、管理者が確認してから決まります（この画面の金額には入っていません）。');
+  if (!c.count && !isReferred()) notes.push('友達を紹介した人・紹介された人だけが対象です（どちらもないときは支給されません）。');
+  if (isReferred() && INIT && INIT.referred === modes[2]) notes.push('紹介された側の割引は、管理者が確認してから決まります（この画面の金額には入っていません）。');
   notes.push('1円未満は切り上げ。最終的な振込額は管理者の確認後に決まります。');
   $('sNote').textContent = notes.join(' ');
 }
@@ -193,7 +210,7 @@ function gather() {
   const items = [...document.querySelectorAll('.item')].map(e => ({ from: e.querySelector('.from').value.trim(), to: e.querySelector('.to').value.trim(), amount: e.querySelector('.amount').value, fileEl: e.querySelector('.file') }));
   return {
     kind: $('kind').value, sei: $('sei').value.replace(/[\s　]+/g, ''), mei: $('mei').value.replace(/[\s　]+/g, ''), school: $('school').value.trim(), schedule: $('schedule').value,
-    referCount: Number($('referCount').value) || 0, referredBy: $('referredBy').value.trim(), referred: [...document.querySelectorAll('.refName')].map(e => e.value.trim()),
+    referCount: Number($('referCount').value) || 0, hasReferrer: $('hasReferrer').value, referredBy: referredByText(), referredByList: referredByNames(), referred: [...document.querySelectorAll('.refName')].map(e => e.value.trim()),
     items, agreePrepaid: $('agreePrepaid').checked, agreeBank: $('agreeBank').checked,
   };
 }
@@ -203,6 +220,8 @@ function validate(p) {
   if (!p.school) return '学校名を入れてください';
   if (!p.schedule) return '日程を選んでください';
   if (p.referred.some(x => !x)) return 'あなたが紹介した人の名前をすべて入れてください';
+  if (!p.hasReferrer) return 'あなたを紹介した人がいるかどうかを選んでください';
+  if (p.hasReferrer === 'いる' && (!p.referredByList.length || p.referredByList.some(x => !x))) return 'あなたを紹介した人の名前をすべて入れてください';
   if (!p.items.length) return '交通費を1つ以上入れてください';
   for (let i = 0; i < p.items.length; i++) {
     const x = p.items[i];
@@ -226,7 +245,7 @@ function toConfirm() {
   msg('msgForm');
   const c = calc();
   const rows = [['区分', p.kind], ['氏名', p.sei + p.mei], ['学校名', p.school], ['日程', p.schedule], ['あなたが紹介した人数', p.referCount + '人'],
-    ['あなたが紹介した人', p.referred.join('、') || '—'], ['あなたを紹介した人', p.referredBy || '—'],
+    ['あなたが紹介した人', p.referred.join('、') || '—'], ['あなたを紹介した人', p.hasReferrer === 'いる' ? p.referredBy : 'いない'],
     ['交通費', p.items.map((x, i) => `${i + 1}. ${x.from} → ${x.to}　${yen(x.amount)}（領収書：${x.fileEl.files[0].name}）`).join('\n')]];
   $('confirmList').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
   $('confirmSum').innerHTML = sumHtml(c);
@@ -269,7 +288,9 @@ async function send() {
 (async () => {
   for (let i = 0; i <= 10; i++) $('referCount').insertAdjacentHTML('beforeend', `<option value="${i}">${i}人</option>`);
   $('referCount').onchange = renderReferred;
-  $('referredBy').oninput = refresh;
+  for (let i = 1; i <= 5; i++) $('referrerCount').insertAdjacentHTML('beforeend', `<option value="${i}">${i}人</option>`);
+  $('hasReferrer').onchange = renderReferrer;
+  $('referrerCount').onchange = renderReferrer;
   addItem();
   msg('msgTop', 'warn', '読み込み中…');
   try {
