@@ -77,6 +77,9 @@
 
   <div class="field"><label class="req">区分</label>
     <select id="kind"><option value="">選択</option></select></div>
+  <div class="field hidden" id="kindDetailBox"><label class="req">「その他」の分類</label>
+    <select id="kindDetail"><option value="">選択</option></select>
+    <div class="note" id="kindDetailNote"></div></div>
   <div class="row2">
     <div class="field"><label class="req">姓</label><input id="sei" autocomplete="family-name" placeholder="例）山田"></div>
     <div class="field"><label class="req">名</label><input id="mei" autocomplete="given-name" placeholder="例）花子"></div>
@@ -158,7 +161,9 @@ function renderReferrer() {
   $('referrerBox').innerHTML = h;
   refresh();
 }
+const isFull = () => $('kind').value === 'その他' && INIT && (INIT.fullSubs || []).includes($('kindDetail').value);
 function rateOf(count) {
+  if (isFull()) return 1;   // コンペ応募者などは全額支給
   let n = Math.max(0, Number(count) || 0);
   const referred = isReferred(), modes = INIT.referredModes || [];
   if (referred && INIT.referred === modes[1]) n++;
@@ -180,7 +185,8 @@ function refresh() {
   $('sDisc').textContent = yen(c.pay); $('sSelf').textContent = yen(c.self); $('sPay').textContent = yen(c.pay);
   const notes = [];
   const modes = (INIT && INIT.referredModes) || [];
-  if (!c.count && !isReferred()) notes.push('友達を紹介した人・紹介された人だけが対象です（どちらもないときは支給されません）。');
+  if (isFull()) notes.push(`${$('kindDetail').value}は交通費の全額を支給します。`);
+  else if (!c.count && !isReferred()) notes.push('友達を紹介した人・紹介された人だけが対象です（どちらもないときは支給されません）。');
   if (isReferred() && INIT && INIT.referred === modes[2]) notes.push('紹介された側の割引は、管理者が確認してから決まります（この画面の金額には入っていません）。');
   notes.push('1円未満は切り上げ。最終的な振込額は管理者の確認後に決まります。');
   $('sNote').textContent = notes.join(' ');
@@ -209,13 +215,14 @@ function renumber() { [...document.querySelectorAll('.item')].forEach((e, i) => 
 function gather() {
   const items = [...document.querySelectorAll('.item')].map(e => ({ from: e.querySelector('.from').value.trim(), to: e.querySelector('.to').value.trim(), amount: e.querySelector('.amount').value, fileEl: e.querySelector('.file') }));
   return {
-    kind: $('kind').value, sei: $('sei').value.replace(/[\s　]+/g, ''), mei: $('mei').value.replace(/[\s　]+/g, ''), school: $('school').value.trim(), schedule: $('schedule').value,
+    kind: $('kind').value, kindDetail: $('kind').value === 'その他' ? $('kindDetail').value : '', sei: $('sei').value.replace(/[\s　]+/g, ''), mei: $('mei').value.replace(/[\s　]+/g, ''), school: $('school').value.trim(), schedule: $('schedule').value,
     referCount: Number($('referCount').value) || 0, hasReferrer: $('hasReferrer').value, referredBy: referredByText(), referredByList: referredByNames(), referred: [...document.querySelectorAll('.refName')].map(e => e.value.trim()),
     items, agreePrepaid: $('agreePrepaid').checked, agreeBank: $('agreeBank').checked,
   };
 }
 function validate(p) {
   if (!p.kind) return '区分を選んでください';
+  if (p.kind === 'その他' && !p.kindDetail) return '「その他」の分類を選んでください';
   if (!p.sei || !p.mei) return '姓と名を入れてください';
   if (!p.school) return '学校名を入れてください';
   if (!p.schedule) return '日程を選んでください';
@@ -244,7 +251,7 @@ function toConfirm() {
   if (e) return msg('msgForm', 'ng', e);
   msg('msgForm');
   const c = calc();
-  const rows = [['区分', p.kind], ['氏名', p.sei + p.mei], ['学校名', p.school], ['日程', p.schedule], ['あなたが紹介した人数', p.referCount + '人'],
+  const rows = [['区分', p.kind + (p.kindDetail ? `（${p.kindDetail}）` : '')], ['氏名', p.sei + p.mei], ['学校名', p.school], ['日程', p.schedule], ['あなたが紹介した人数', p.referCount + '人'],
     ['あなたが紹介した人', p.referred.join('、') || '—'], ['あなたを紹介した人', p.hasReferrer === 'いる' ? p.referredBy : 'いない'],
     ['交通費', p.items.map((x, i) => `${i + 1}. ${x.from} → ${x.to}　${yen(x.amount)}（領収書：${x.fileEl.files[0].name}）`).join('\n')]];
   $('confirmList').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
@@ -296,6 +303,9 @@ async function send() {
   try {
     INIT = await post({ action: 'internInit' });
     INIT.kinds.forEach(k => $('kind').insertAdjacentHTML('beforeend', `<option>${esc(k)}</option>`));
+    (INIT.otherSubs || []).forEach(k => $('kindDetail').insertAdjacentHTML('beforeend', `<option>${esc(k)}</option>`));
+    $('kind').onchange = () => { $('kindDetailBox').classList.toggle('hidden', $('kind').value !== 'その他'); refresh(); };
+    $('kindDetail').onchange = () => { $('kindDetailNote').textContent = isFull() ? '交通費の全額が支給されます。' : ''; refresh(); };
     INIT.schedules.forEach(s => $('schedule').insertAdjacentHTML('beforeend', `<option>${esc(s.name)}</option>`));
     $('rateTable').innerHTML = INIT.rates.filter(x => x.count > 0).map(x => `<tr><td>${x.count}人目${x.count === Math.max(...INIT.rates.map(y => y.count)) ? '以上' : ''}</td><td>→ ${Math.round(x.rate * 100)}%オフ</td></tr>`).join('');
     $('refRate').textContent = Math.round((Number(INIT.referredRate) || 0) * 100);
