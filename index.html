@@ -317,6 +317,9 @@ window.google = { script: { get run() {
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const opts = (list, ph) => (ph ? `<option value="">${ph}</option>` : '') + list.map(v => `<option>${esc(v)}</option>`).join('');
+/** PJ名は頭に記号を付けて表示（中身の値は記号なし） */
+const pjL = p => ((INIT && INIT.pjEmoji) || {})[p] ? INIT.pjEmoji[p] + p : p;
+const pjOpts = (list, ph) => (ph ? `<option value="">${ph}</option>` : '') + list.map(v => `<option value="${esc(v)}">${esc(pjL(v))}</option>`).join('');
 const pad = n => String(n).padStart(2, '0');
 function ymd(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
@@ -354,8 +357,8 @@ function applyInit(init) {
   $('genbaPrice').textContent = `現地で活動した日は1日${Number(init.genbaUnit || 3000).toLocaleString()}円です。`;
   $('snsHint').textContent = 'SNS投稿は ' + (init.snsKinds || []).map(k => `${k.name} 1件${Number(k.unit).toLocaleString()}円`).join('・') + ' です。投稿ごとに1枚入力してください。';
   addPost(); addGenbaDay();
-  $('tMode').innerHTML = opts(init.transports, '選択'); $('tPj').innerHTML = opts(init.pjs, '選択');
-  $('bPj').innerHTML = opts(init.pjs, '選択');
+  $('tMode').innerHTML = opts(init.transports, '選択'); $('tPj').innerHTML = pjOpts(init.pjs, '選択');
+  $('bPj').innerHTML = pjOpts(init.pjs, '選択');
   $('bMonth').innerHTML = opts([4,5,6,7,8,9,10,11,12,1,2,3].map(m => `${m < 4 ? init.fy + 1 : init.fy}年${m}月`), '選択');
   const myMeetings = (init.meetings || []).filter(x => x.leader === (B.member || ''));
   // 8つの定例はだれにでも見えるが、選べるのは自分がリーダーの定例だけ
@@ -368,7 +371,7 @@ function applyInit(init) {
   $('groupTab').style.display = '';
   renderGroupMembers();
   resetTransport(); renderGroupMembers();
-  $('pj').innerHTML = opts(init.pjs.filter(p => p !== 'DL全体'), '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('staff').innerHTML = opts(init.staff || [], '払った社員を選ぶ'); $('store').innerHTML = opts(init.stores, '選択');
+  $('pj').innerHTML = pjOpts(init.pjs.filter(p => p !== 'DL全体'), '選択'); $('settle').innerHTML = opts(init.settles, '選択'); $('staff').innerHTML = opts(init.staff || [], '払った社員を選ぶ'); $('store').innerHTML = opts(init.stores, '選択');
   $('hMonth').innerHTML = '<option value="">すべて</option>' + [4,5,6,7,8,9,10,11,12,1,2,3].map(m => `<option value="${m}">${m}月</option>`).join('');
   addItem(); onMember(); go(document.querySelector('.tabs button.on') ? document.querySelector('.tabs button.on').dataset.p : (B.page === 'activity' ? 'work' : (B.page || 'work')));
 }
@@ -752,11 +755,11 @@ function renderHistory() {
        <td>${x.mine ? `<button class="mini" onclick="editTrans(${i})">修正</button>${delBtn('trans', i)}` : ''}</td></tr>`), '交通費の記録はありません');
   } else if (k === 'budgetreq') {
     html = table(['申請日', 'PJ・企画', '小項目', '金額', '使用予定', '状態', ''], HIST.budgetRequests.map((x, i) =>
-      `<tr><td>${md(x.date)}</td><td>${esc(x.pj)}</td><td>${esc(x.item)}<br><span class="hint">${esc(x.purpose)}</span></td><td class="num">${yen(x.amount)}</td><td>${esc(x.month)}</td>
+      `<tr><td>${md(x.date)}</td><td>${esc(pjL(x.pj))}</td><td>${esc(x.item)}<br><span class="hint">${esc(x.purpose)}</span></td><td class="num">${yen(x.amount)}</td><td>${esc(x.month)}</td>
        <td><span class="badge">${esc(x.status)}</span></td><td>${x.status === '承認' || x.status === '却下' ? '' : `<button class="mini" onclick="editBud(${i})">修正</button>${delBtn('bud', i)}`}</td></tr>`), '追加予算の申請はありません');
   } else {
     html = table(['購入日', '金額', 'PJ・企画', '予算元', '内容', '精算', '状態', ''], HIST.expenses.map((x, i) => [x, i]).filter(([x]) => inMonth(x.date)).map(([x, i]) =>
-      `<tr><td>${md(x.date)}</td><td class="num">${yen(x.amount)}</td><td>${esc(x.pj)}</td><td>${esc(x.budget)}</td>
+      `<tr><td>${md(x.date)}</td><td class="num">${yen(x.amount)}</td><td>${esc(pjL(x.pj))}</td><td>${esc(x.budget)}</td>
        <td>${esc(x.content)}${link(x.url, '領収書')}${x.receipt && x.receipt !== x.url ? link(x.receipt, 'レシート') : ''}</td><td>${esc(x.settle)}</td><td><span class="badge ${esc(x.status)}">${esc(x.status)}</span></td>
        <td><button class="mini" onclick="editExp(${i})">修正</button>${delBtn('expense', i)}</td></tr>`), '経費の記録はありません');
   }
