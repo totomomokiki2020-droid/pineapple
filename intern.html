@@ -70,7 +70,7 @@
 <!-- 入力 -->
 <div id="formView">
   <div class="rule" id="ruleBox">
-    今回の交通費が支給されるのは、説明会で話したとおり<b>友達を紹介した人のみ</b>です。紹介した人数に応じて交通費が割り引かれ、割り引いた分が支給（振込）されます。紹介された側も割り引かれます。
+    今回の交通費が支給されるのは、説明会で話したとおり<b>友達を紹介した人のみ</b>です。紹介した人数に応じて交通費が割り引かれ、割り引いた分が支給（振込）されます。<b>紹介された側も<span id="refRate">30</span>%引き</b>です。
     <table id="rateTable"></table>
     例）2人紹介：10,000円 → 自己負担4,000円（6,000円を支給）
   </div>
@@ -143,8 +143,10 @@ async function post(body) {
 }
 function rateOf(count) {
   let n = Math.max(0, Number(count) || 0);
-  if ($('referredBy').value.trim() && INIT.referred === '紹介した人数に1人分を加える') n++;
+  const referred = !!$('referredBy').value.trim(), modes = INIT.referredModes || [];
+  if (referred && INIT.referred === modes[1]) n++;
   let r = 0; INIT.rates.forEach(x => { if (n >= x.count) r = x.rate; });
+  if (referred && INIT.referred === modes[0]) r = Math.max(r, Number(INIT.referredRate) || 0);
   return Math.min(1, r);
 }
 function calc() {
@@ -157,11 +159,12 @@ function calc() {
 }
 function refresh() {
   const c = calc();
-  $('sTotal').textContent = yen(c.total); $('sCount').textContent = c.count; $('sRate').textContent = Math.round(c.rate * 100) + '%';
+  $('sTotal').textContent = yen(c.total); $('sCount').textContent = c.count; $('sRate').textContent = Math.round(c.rate * 100) + '%' + ($('referredBy').value.trim() ? '（紹介された分を含む）' : '');
   $('sDisc').textContent = yen(c.pay); $('sSelf').textContent = yen(c.self); $('sPay').textContent = yen(c.pay);
   const notes = [];
-  if (!c.count) notes.push('紹介した人数が0人のときは支給されません。');
-  if ($('referredBy').value.trim() && INIT && INIT.referred !== '紹介した人数に1人分を加える') notes.push('紹介された側の割引は、管理者が確認してから決まります（この画面の金額には入っていません）。');
+  const modes = (INIT && INIT.referredModes) || [];
+  if (!c.count && !$('referredBy').value.trim()) notes.push('友達を紹介した人・紹介された人だけが対象です（どちらもないときは支給されません）。');
+  if ($('referredBy').value.trim() && INIT && INIT.referred === modes[2]) notes.push('紹介された側の割引は、管理者が確認してから決まります（この画面の金額には入っていません）。');
   notes.push('1円未満は切り上げ。最終的な振込額は管理者の確認後に決まります。');
   $('sNote').textContent = notes.join(' ');
 }
@@ -274,6 +277,7 @@ async function send() {
     INIT.kinds.forEach(k => $('kind').insertAdjacentHTML('beforeend', `<option>${esc(k)}</option>`));
     INIT.schedules.forEach(s => $('schedule').insertAdjacentHTML('beforeend', `<option>${esc(s.name)}</option>`));
     $('rateTable').innerHTML = INIT.rates.filter(x => x.count > 0).map(x => `<tr><td>${x.count}人目${x.count === Math.max(...INIT.rates.map(y => y.count)) ? '以上' : ''}</td><td>→ ${Math.round(x.rate * 100)}%オフ</td></tr>`).join('');
+    $('refRate').textContent = Math.round((Number(INIT.referredRate) || 0) * 100);
     $('bankLink').href = INIT.bankUrl; $('bankLink2').href = INIT.bankUrl;
     msg('msgTop'); refresh();
   } catch (e) { msg('msgTop', 'ng', '読み込めませんでした：' + esc(e.message)); }
